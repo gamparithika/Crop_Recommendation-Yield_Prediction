@@ -1,0 +1,116 @@
+# ===============================
+# Crop Recommendation using XGBoost
+# ===============================
+
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import matplotlib.pyplot as plt
+
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder, StandardScaler
+from sklearn.metrics import accuracy_score, classification_report, confusion_matrix
+
+from xgboost import XGBClassifier
+
+# ------------------------------
+# 1. Load Dataset
+# ------------------------------
+df = pd.read_csv("/content/Crop_recommendation.csv")   # Download from Kaggle
+
+print("Dataset Shape:", df.shape)
+print(df.head())
+
+# ------------------------------
+# 2. Check Missing Values
+# ------------------------------
+print(df.isnull().sum())
+
+# ------------------------------
+# 3. Feature & Target Split
+# ------------------------------
+X = df.drop("label", axis=1)
+y = df["label"]
+
+# ------------------------------
+# 4. Encode Target Labels
+# ------------------------------
+le = LabelEncoder()
+y = le.fit_transform(y)
+
+# ------------------------------
+# 5. Feature Scaling
+# ------------------------------
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(X)
+
+# ------------------------------
+# 6. Train-Test Split
+# ------------------------------
+X_train, X_test, y_train, y_test = train_test_split(
+    X_scaled, y, test_size=0.2, random_state=42
+)
+
+# ------------------------------
+# 7. Train XGBoost Model
+# ------------------------------
+model = XGBClassifier(
+    n_estimators=300,
+    learning_rate=0.1,
+    max_depth=6,
+    random_state=42,
+    use_label_encoder=False,
+    eval_metric='mlogloss'
+)
+
+model.fit(X_train, y_train)
+
+# ------------------------------
+# 8. Predictions
+# ------------------------------
+y_pred = model.predict(X_test)
+
+# ------------------------------
+# 9. Accuracy Evaluation
+# ------------------------------
+accuracy = accuracy_score(y_test, y_pred)
+print("\nModel Accuracy:", accuracy * 100, "%")
+
+print("\nClassification Report:\n")
+print(classification_report(y_test, y_pred))
+
+# ------------------------------
+# 10. Confusion Matrix
+# ------------------------------
+cm = confusion_matrix(y_test, y_pred)
+
+plt.figure(figsize=(10, 7))
+sns.heatmap(cm, annot=True, fmt='d', cmap='Greens')
+plt.title("Confusion Matrix")
+plt.xlabel("Predicted")
+plt.ylabel("Actual")
+plt.show()
+
+# ------------------------------
+# 11. Feature Importance
+# ------------------------------
+importances = model.feature_importances_
+features = X.columns
+
+plt.figure(figsize=(8, 5))
+sns.barplot(x=importances, y=features)
+plt.title("Feature Importance")
+plt.show()
+
+# ------------------------------
+# 12. Test with Custom Input
+# ------------------------------
+# Example: N, P, K, temp, humidity, ph, rainfall
+sample = np.array([[90, 42, 43, 20.5, 82, 6.5, 202]])
+
+sample_scaled = scaler.transform(sample)
+prediction = model.predict(sample_scaled)
+
+crop = le.inverse_transform(prediction)
+
+print("\nRecommended Crop:", crop[0])
